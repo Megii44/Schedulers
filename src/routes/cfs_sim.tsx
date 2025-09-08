@@ -632,7 +632,7 @@ export default function CfsSim() {
                 // bočni label (P1) dimenzije
                 const lbl = isLeaf ? shortLabel(n.name) : "";
                 const padX = 8;
-                const padY = 4;
+                // const padY = 4;
                 const charW = 8; // aproks.
                 const lblW = lbl.length * charW + padX * 2;
                 const lblH = 18;

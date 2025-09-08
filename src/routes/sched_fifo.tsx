@@ -15,10 +15,29 @@ import { useNavigate } from "@tanstack/react-router";
 type Job = {
   id: string;
   name: string;
-  priority: number | "";
-  duration: number | "";
-  arrivalTime: number | "";
+  priority: number; // uvijek broj >= 0
+  duration: number; // uvijek broj >= 0
+  arrivalTime: number; // uvijek broj >= 0
   editable: boolean;
+};
+
+// Pretvori bilo koji unos u nenegativan cijeli broj; nevaljano -> 0
+const toNonNegativeInt = (v: unknown): number => {
+  if (v === "" || v == null) return 0;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.floor(n));
+};
+
+// Priority: dozvoli "#5" ili "5", sve ostalo -> 0
+const parsePriority = (v: unknown): number => {
+  if (v === "" || v == null) return 0;
+  const s = String(v).trim();
+  const m = s.match(/^#?\s*([0-9]+)$/);
+  if (!m) return 0;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.floor(n));
 };
 
 export default function SchedFifo() {
@@ -32,10 +51,10 @@ export default function SchedFifo() {
       ...prev,
       {
         id: crypto.randomUUID(),
-        name: `Posao ${jobs.length + 1}`,
-        priority: "",
-        duration: "",
-        arrivalTime: "",
+        name: `Posao ${prev.length + 1}`,
+        priority: 0,
+        duration: 0,
+        arrivalTime: 0,
         editable: true,
       },
     ]);
@@ -46,7 +65,7 @@ export default function SchedFifo() {
       ...prev,
       {
         id: crypto.randomUUID(),
-        name: `Posao ${jobs.length + 1}`,
+        name: `Posao ${prev.length + 1}`,
         priority: Math.floor(Math.random() * 10) + 1,
         duration: Math.floor(Math.random() * 10) + 1,
         arrivalTime: Math.floor(Math.random() * 10),
@@ -76,15 +95,35 @@ export default function SchedFifo() {
         jobs={jobs}
         onUpdate={(id, field, value) =>
           setJobs((prev) =>
-            prev.map((job) =>
-              job.id === id ? { ...job, [field]: value } : job
-            )
+            prev.map((job) => {
+              if (job.id !== id) return job;
+
+              if (field === "priority") {
+                return { ...job, priority: parsePriority(value) };
+              }
+              if (field === "duration") {
+                return { ...job, duration: toNonNegativeInt(value) };
+              }
+              if (field === "arrivalTime") {
+                return { ...job, arrivalTime: toNonNegativeInt(value) };
+              }
+
+              return { ...job, [field]: value as any };
+            })
           )
         }
         onSave={(id) =>
           setJobs((prev) =>
             prev.map((job) =>
-              job.id === id ? { ...job, editable: false } : job
+              job.id === id
+                ? {
+                    ...job,
+                    priority: parsePriority(job.priority),
+                    duration: toNonNegativeInt(job.duration),
+                    arrivalTime: toNonNegativeInt(job.arrivalTime),
+                    editable: false,
+                  }
+                : job
             )
           )
         }

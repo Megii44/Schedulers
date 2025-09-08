@@ -9,6 +9,8 @@ import {
   Box,
   IconButton,
   TextField,
+  Chip,
+  Tooltip,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -17,9 +19,9 @@ import SaveIcon from "@mui/icons-material/Save";
 type Job = {
   id: string;
   name: string;
-  priority: number | "";
-  duration: number | "";
-  arrivalTime: number | "";
+  priority: number; // držimo kao broj (parent osigurava >= 0)
+  duration: number; // broj >= 0
+  arrivalTime: number; // broj >= 0
   editable: boolean;
 };
 
@@ -65,6 +67,7 @@ export default function JobTable({
           ) : (
             jobs.map((job, index) => (
               <TableRow key={job.id}>
+                {/* Naziv posla kao obojani badge */}
                 <TableCell>
                   <Box
                     px={2}
@@ -81,69 +84,107 @@ export default function JobTable({
                     {job.name}
                   </Box>
                 </TableCell>
+
+                {/* Prioritet: Chip u view modu; TextField s # u edit modu */}
                 <TableCell>
                   {job.editable ? (
                     <TextField
                       size="small"
-                      value={job.priority}
+                      placeholder="#5"
+                      style={{
+                        paddingLeft: 2,
+                        paddingTop: 2,
+                        paddingBottom: 2,
+                        paddingRight: 2,
+                      }}
+                      value={job.priority > 0 ? `# ${job.priority}` : ""}
                       onChange={(e) =>
-                        onUpdate(job.id, "priority", parseInt(e.target.value))
+                        // parent (SchedFifo) radi parsePriority, tu samo šaljemo sirovi input
+                        onUpdate(job.id, "priority", e.target.value)
                       }
+                      inputProps={{ inputMode: "numeric", pattern: "#?[0-9]*" }}
                     />
                   ) : (
-                    job.priority
+                    <Chip
+                      style={{
+                        paddingLeft: 2,
+                        paddingTop: 2,
+                        paddingBottom: 2,
+                        paddingRight: 2,
+                      }}
+                      size="small"
+                      color="primary"
+                      label={job.priority > 0 ? `# ${job.priority}` : "-"}
+                    />
                   )}
                 </TableCell>
+
+                {/* Trajanje */}
                 <TableCell>
                   {job.editable ? (
                     <TextField
                       size="small"
-                      value={job.duration}
+                      type="number"
+                      inputProps={{ min: 0, step: 1 }}
+                      value={Number.isFinite(job.duration) ? job.duration : 0}
                       onChange={(e) =>
-                        onUpdate(job.id, "duration", parseInt(e.target.value))
+                        // bez parseInt ovdje; parent će normalizirati u nenegativan int
+                        onUpdate(job.id, "duration", e.target.value)
                       }
                     />
                   ) : (
                     `${job.duration} sekundi`
                   )}
                 </TableCell>
+
+                {/* Trenutak pojave */}
                 <TableCell>
                   {job.editable ? (
                     <TextField
                       size="small"
-                      value={job.arrivalTime}
+                      type="number"
+                      inputProps={{ min: 0, step: 1 }}
+                      value={
+                        Number.isFinite(job.arrivalTime) ? job.arrivalTime : 0
+                      }
                       onChange={(e) =>
-                        onUpdate(
-                          job.id,
-                          "arrivalTime",
-                          parseInt(e.target.value)
-                        )
+                        onUpdate(job.id, "arrivalTime", e.target.value)
                       }
                     />
                   ) : (
                     `${job.arrivalTime}. sekunda`
                   )}
                 </TableCell>
+
+                {/* Akcije */}
                 <TableCell>
                   {job.editable ? (
-                    <IconButton color="success" onClick={() => onSave(job.id)}>
-                      <SaveIcon />
-                    </IconButton>
+                    <Tooltip title="Spremi">
+                      <IconButton
+                        color="success"
+                        onClick={() => onSave(job.id)}
+                      >
+                        <SaveIcon />
+                      </IconButton>
+                    </Tooltip>
                   ) : (
                     <>
-                      <IconButton
-                        color="warning"
-                        onClick={() => onSetEditable(job.id, true)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-
-                      <IconButton
-                        color="error"
-                        onClick={() => onDelete(job.id)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                      <Tooltip title="Uredi">
+                        <IconButton
+                          color="warning"
+                          onClick={() => onSetEditable(job.id, true)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Obriši">
+                        <IconButton
+                          color="error"
+                          onClick={() => onDelete(job.id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
                     </>
                   )}
                 </TableCell>

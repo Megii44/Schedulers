@@ -353,7 +353,7 @@ export default function EdfSim() {
                           height: "100%",
                         }}
                       >
-                        {col.stack.map((s, level) => {
+                        {col.stack.map((s: any, level: number) => {
                           const thisColor = colorById.get(s.id) ?? s.color;
                           const prevColor = prev?.stack[level]
                             ? colorById.get(prev.stack[level].id) ??

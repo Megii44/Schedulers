@@ -228,11 +228,10 @@ export default function SchedDeadline() {
     ]);
   };
 
-  /* Pokreni simulaciju (boje i jobs idu u state) */
   const handleSimulate = () => {
     navigate({
       to: "/sched_deadline_sim",
-      state: { jobs },
+      state: (prev) => ({ ...prev, jobs }),
     });
   };
 

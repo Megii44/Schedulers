@@ -229,7 +229,7 @@ export default function SchedSporadic() {
   const handleSimulate = () => {
     navigate({
       to: "/sched_sporadic_sim",
-      state: { jobs },
+      state: (prev) => ({ ...prev, jobs }),
     });
   };
 

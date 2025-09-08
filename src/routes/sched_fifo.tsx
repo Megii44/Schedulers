@@ -58,7 +58,7 @@ export default function SchedFifo() {
   const handleSimulate = () => {
     navigate({
       to: "/sched_fifo_sim",
-      state: { jobs },
+      state: (prev) => ({ ...prev, jobs }),
     });
   };
 

@@ -210,7 +210,10 @@ export default function Llf() {
   };
 
   const handleSimulate = () => {
-    navigate({ to: "/llf_sim", state: { jobs } });
+    navigate({
+      to: "/llf_sim",
+      state: (prev) => ({ ...prev, jobs }),
+    });
   };
 
   return (

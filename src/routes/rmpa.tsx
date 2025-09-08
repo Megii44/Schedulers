@@ -250,7 +250,7 @@ export default function Rmpa() {
   const handleSimulate = () => {
     navigate({
       to: "/rmpa_sim",
-      state: { jobs },
+      state: (prev) => ({ ...prev, jobs }),
     });
   };
 

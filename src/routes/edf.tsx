@@ -210,7 +210,10 @@ export default function Edf() {
   };
 
   const handleSimulate = () => {
-    navigate({ to: "/edf_sim", state: { jobs } });
+    navigate({
+      to: "/edf_sim",
+      state: (prev) => ({ ...prev, jobs }),
+    });
   };
 
   return (

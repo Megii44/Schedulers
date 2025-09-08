@@ -17,7 +17,6 @@ import {
   Divider,
   Paper,
 } from "@mui/material";
-import Grid from "@mui/material/Grid";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PauseCircleIcon from "@mui/icons-material/PauseCircle";
@@ -742,7 +741,7 @@ export default function SchedFifoSim() {
         <Box sx={{ mt: 3 }}>
           <Stack direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
             <Button variant="outlined" onClick={() => setShowStats((v) => !v)}>
-              {showStats ? "Sakrij statistiku" : "Prikaži statistiku"}
+              {showStats ? "Sakrij statistiku" : "Prikazi statistiku"}
             </Button>
           </Stack>
 
@@ -751,90 +750,109 @@ export default function SchedFifoSim() {
               <Typography variant="h6" fontWeight={700} sx={{ mb: 1.5 }}>
                 Statistika simulacije
               </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={3}>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 2,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, 1fr)",
+                    md: "repeat(4, 1fr)",
+                  },
+                }}
+              >
+                <Box>
                   <Typography variant="body2" color="text.secondary">
                     Ukupno poslova
                   </Typography>
                   <Typography fontWeight={700}>{stats.N}</Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                </Box>
+
+                <Box>
                   <Typography variant="body2" color="text.secondary">
                     Trajanje simulacije
                   </Typography>
                   <Typography fontWeight={700}>
                     {stats.horizon.toFixed(0)} s
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                </Box>
+
+                <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Prosj. u poslužitelju \u0304nₚ
+                    Prosj. u posluzitelju (n_p)
                   </Typography>
                   <Typography fontWeight={700}>
                     {stats.n_p.toFixed(2)}
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                </Box>
+
+                <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Prosj. u redu \u0304nᵣ
+                    Prosj. u redu (n_r)
                   </Typography>
                   <Typography fontWeight={700}>
                     {stats.n_r.toFixed(2)}
                   </Typography>
-                </Grid>
+                </Box>
 
-                <Grid item xs={12} sm={6} md={3}>
+                <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Prosj. u sustavu \u0304n
+                    Prosj. u sustavu (n)
                   </Typography>
                   <Typography fontWeight={700}>
                     {stats.n_all.toFixed(2)}
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                </Box>
+
+                <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Stopa dolazaka α
+                    Stopa dolazaka (alpha)
                   </Typography>
                   <Typography fontWeight={700}>
                     {stats.arrivalRate.toFixed(2)} /s
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                </Box>
+
+                <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Prosj. vrijeme u sustavu \u0304T
+                    Prosj. vrijeme u sustavu (T)
                   </Typography>
                   <Typography fontWeight={700}>
                     {stats.avgResponse.toFixed(2)} s
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                </Box>
+
+                <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Provjera: \u0304n / α
+                    Provjera: n / alpha
                   </Typography>
                   <Typography fontWeight={700}>
                     {stats.littleT.toFixed(2)} s
                   </Typography>
-                </Grid>
+                </Box>
 
-                <Grid item xs={12} sm={6} md={3}>
+                <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Prosj. čekanje u redu \u0304W_q
+                    Prosj. cekanje u redu (W_q)
                   </Typography>
                   <Typography fontWeight={700}>
                     {stats.avgWaiting.toFixed(2)} s
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                </Box>
+
+                <Box>
                   <Typography variant="body2" color="text.secondary">
                     Prosj. servisno vrijeme
                   </Typography>
                   <Typography fontWeight={700}>
                     {stats.avgService.toFixed(2)} s
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                </Box>
+
+                <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Iskorištenje CPU-a ρ
+                    Iskoristenje CPU-a (rho)
                   </Typography>
                   <Typography fontWeight={700}>
                     {(stats.utilization * 100).toFixed(1)}%
@@ -846,15 +864,15 @@ export default function SchedFifoSim() {
                       (K = {lanesCount})
                     </Typography>
                   </Typography>
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
 
               <Divider sx={{ my: 2 }} />
               <Typography variant="caption" color="text.secondary">
-                Veličine su računane diskretno po sekundama. \u0304nₚ, \u0304nᵣ
-                i \u0304n su vremenski prosjeci; \u0304T je izračunat iz vremena
-                završetaka po poslu, a \u0304n/α je Littleov zakon (trebao bi
-                približno odgovarati \u0304T).
+                Velicine su racunate diskretno po sekundama. n_p, n_r i n su
+                vremenski prosjeci; T je izracunat iz vremena zavrsetaka po
+                poslu, a n/alpha je Littleov zakon (trebao bi priblizno
+                odgovarati T).
               </Typography>
             </Paper>
           )}

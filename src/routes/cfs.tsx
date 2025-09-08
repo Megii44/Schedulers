@@ -313,7 +313,10 @@ export default function Cfs() {
   };
 
   const handleSimulate = () => {
-    navigate({ to: "/cfs_sim", state: { jobs } });
+    navigate({
+      to: "/cfs_sim",
+      state: (prev) => ({ ...prev, jobs }),
+    });
   };
 
   return (

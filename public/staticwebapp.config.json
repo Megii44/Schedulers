@@ -1,0 +1,10 @@
+{
+  "routes": [{ "route": "/*", "serve": "/index.html", "statusCode": 200 }],
+  "mimeTypes": {
+    ".js": "application/javascript",
+    ".mjs": "application/javascript",
+    ".css": "text/css",
+    ".wasm": "application/wasm",
+    ".json": "application/json"
+  }
+}

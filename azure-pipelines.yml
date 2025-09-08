@@ -1,0 +1,58 @@
+trigger:
+  - main
+
+# Self-hosted Windows agent
+pool:
+  name: Default
+
+steps:
+  # Checkout
+  - checkout: self
+
+  # Node 20
+  - task: NodeTool@0
+    inputs:
+      versionSpec: "20.x"
+    displayName: Use Node 20
+
+  # (brže) cache za npm
+  - task: Cache@2
+    inputs:
+      key: 'npm | "$(Agent.OS)" | package-lock.json'
+      restoreKeys: |
+        npm | "$(Agent.OS)"
+      path: "$(Pipeline.Workspace)/.npm"
+    displayName: Cache npm
+
+  # Forsiraj Git Bash ispred system32 bash-a (bez ispisa/provjere)
+  - powershell: |
+      $git = @('C:\Program Files\Git\bin','C:\Program Files\Git\usr\bin')
+      $env:PATH = ($git -join ';') + ';' + $env:PATH
+    displayName: Prepare PATH (Git Bash)
+
+  # Ukloni env varijable s razmacima u IMENU (Docker ih ne prihvaća)
+  - powershell: |
+      Get-ChildItem Env: | Where-Object { $_.Name -match '\s' } | ForEach-Object {
+        Remove-Item Env:$($_.Name) -ErrorAction SilentlyContinue
+      }
+    displayName: Clean env (names with spaces)
+
+  # Build (Vite -> dist)
+  - script: |
+      npm config set cache $(Pipeline.Workspace)/.npm --global
+      npm ci
+      npm run build
+    displayName: Install & Build
+    env:
+      CI: "false"
+
+  # Deploy (root je /, build output je dist)
+  - task: AzureStaticWebApp@0
+    displayName: Deploy to Azure Static Web Apps
+    inputs:
+      app_location: "/"
+      output_location: "dist"
+      skip_app_build: true
+      azure_static_web_apps_api_token: "9d5d3c5f65c06ff7cfb65eaf70d27c2e8a2012faf6d3756f21ff0b32afe4e3ef02-190ab454-f5bf-4296-85c5-cd74ace0b2c30032710015aebc03"
+    env:
+      PATH: 'C:\Program Files\Git\bin;C:\Program Files\Git\usr\bin;$(PATH)'

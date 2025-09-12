@@ -13,13 +13,13 @@ import { Link, useRouterState } from "@tanstack/react-router";
 
 const schedulers = [
   { label: "SCHED_FIFO", path: "/sched_fifo" },
+  { label: "SCHED_RR", path: "/sched_rr" },
   { label: "SCHED_DEADLINE", path: "/sched_deadline" },
   { label: "SCHED_SPORADIC", path: "/sched_sporadic" },
   { label: "RMPA", path: "/rmpa" },
   { label: "EDF", path: "/edf" },
   { label: "LLF", path: "/llf" },
   { label: "CFS", path: "/cfs" },
-  { label: "SCHED_RR", path: "/sched_rr" },
 ];
 
 export default function Sidebar() {

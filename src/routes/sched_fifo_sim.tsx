@@ -14,6 +14,15 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Paper,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Divider,
+  Collapse,
+  Tooltip,
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -21,6 +30,8 @@ import PauseCircleIcon from "@mui/icons-material/PauseCircle";
 import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 
 /* ---------- tip posla (isti kao u sched_fifo.tsx) ---------- */
@@ -36,9 +47,8 @@ type Job = {
 const PALETTE = ["#f44336", "#ba68c8", "#4caf50", "#00bcd4", "#ffb300"];
 const colorOf = (i: number) => PALETTE[i % PALETTE.length];
 
-/* helper: hex -> rgba s alfo m */
+/* helper: hex -> rgba s alfa koeficijentom */
 function withAlpha(hex: string, a: number) {
-  // očekujemo #RRGGBB
   const m = hex.trim().match(/^#?([0-9a-f]{6})$/i);
   if (!m) return hex;
   const n = parseInt(m[1], 16);
@@ -119,13 +129,13 @@ function simulate(input: Job[], cpus: number): SimOut {
   const readyByPri = new Map<number, NJob[]>();
   const pushReady = (job: NJob) => {
     if (!readyByPri.has(job.prio)) readyByPri.set(job.prio, []);
-    readyByPri.get(job.prio)!.push(job); // FIFO (push na kraj)
+    readyByPri.get(job.prio)!.push(job); // FIFO
   };
   const popFromHighest = (): NJob | undefined => {
     const prios = [...readyByPri.keys()].sort((a, b) => a - b);
     for (const p of prios) {
       const q = readyByPri.get(p)!;
-      if (q.length) return q.shift(); // FIFO: uzmi s glave
+      if (q.length) return q.shift();
     }
     return undefined;
   };
@@ -156,7 +166,7 @@ function simulate(input: Job[], cpus: number): SimOut {
   const haveWork = () =>
     running.some(Boolean) || hasReady() || notArrived.length > 0;
 
-  // Pakiraj aktivne prema dnu bez rupa, čuvajući trenutni redoslijed.
+  // Zbij aktivne prema dnu bez rupa
   const compactRunning = () => {
     const live = running.filter((r): r is NJob => Boolean(r));
     running = [
@@ -166,7 +176,6 @@ function simulate(input: Job[], cpus: number): SimOut {
   };
 
   while (haveWork()) {
-    // Ako nema spremnih, preskoči do sljedećeg dolaska
     if (!running.some(Boolean) && !hasReady()) {
       if (!notArrived.length) break;
       const nextT = notArrived[0].arr;
@@ -181,27 +190,24 @@ function simulate(input: Job[], cpus: number): SimOut {
         pushReady(notArrived.shift()!);
     }
 
-    // Dolazak višeg prioriteta može preuzeti CPU od nižeg
+    // Preuzimanje ako je došao viši prioritet
     const hp = highestPrioReady();
     if (hp !== undefined) {
-      // Preuzimanje krene od donjeg CPU-a (CPU 0) kako bi viši prioritet završio što bliže dnu.
       for (let c = 0; c < ncpu; c++) {
         const cur = running[c];
         if (cur && cur.prio > hp) {
           const q = readyByPri.get(cur.prio) ?? [];
-          // Prekinuti posao ide na čelo svog FIFO reda (SCHED_FIFO semantika).
-          readyByPri.set(cur.prio, [cur, ...q]);
+          readyByPri.set(cur.prio, [cur, ...q]); // prekinuti ide na čelo svog reda
           running[c] = undefined;
         }
       }
     }
 
-    // Popuni slobodne CPU-e od dna prema vrhu (CPU 0 je dno u prikazu).
+    // Popuni slobodne CPU-e od dna prema vrhu
     for (let c = 0; c < ncpu; c++) {
       if (!running[c]) running[c] = popFromHighest();
     }
 
-    // >>> Ključ: nema rupa – zapakiraj prema dnu svaku iteraciju.
     compactRunning();
 
     columns.push({
@@ -210,7 +216,7 @@ function simulate(input: Job[], cpus: number): SimOut {
       readyIds: snapshotReadyOrder(),
     });
 
-    // Odradi 1 s na svima koji rade
+    // Odradi 1 s
     for (let c = 0; c < ncpu; c++) {
       const cur = running[c];
       if (!cur) continue;
@@ -253,6 +259,7 @@ export default function SchedFifoSim() {
   const [progress, setProgress] = useState(0);
   const [running, setRunning] = useState(true);
   const [openInfo, setOpenInfo] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(true);
 
   const curSec = Math.min(progress, totalSecs) + minT;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -278,7 +285,7 @@ export default function SchedFifoSim() {
     setProgress(totalSecs);
   };
 
-  /* ---------- spremi pripravne po razinama (zbijeno) ---------- */
+  /* ---------- pripravne (zbijeno) ---------- */
   const readyMatrix = useMemo(() => {
     const upto = Math.min(progress, totalSecs);
     const levels = Array.from({ length: maxReadyDepth }, () =>
@@ -296,7 +303,7 @@ export default function SchedFifoSim() {
     return levels;
   }, [columns, maxReadyDepth, progress, totalSecs]);
 
-  /* ---------- aktivna traka – grupiraj segmente za svaki CPU ---------- */
+  /* ---------- aktivne – blokovi po CPU ---------- */
   const activeBlocksPerCpu = useMemo(() => {
     const upto = Math.min(progress, totalSecs);
     const perCpu: { start: number; len: number; id: string }[][] = Array.from(
@@ -320,6 +327,132 @@ export default function SchedFifoSim() {
     }
     return perCpu;
   }, [columns, progress, totalSecs, numCpus]);
+
+  /* ---------- STATISTIKA ---------- */
+  type JobStats = {
+    id: string;
+    name: string;
+    color: string;
+    arrival: number;
+    start: number;
+    finish: number;
+    response: number; // start - arrival
+    turnaround: number; // finish - arrival
+    waiting: number; // turnaround - duration
+    duration: number;
+  };
+
+  const { perJob, totals, det } = useMemo(() => {
+    const perJob: JobStats[] = [];
+    if (!columns.length) {
+      return {
+        perJob,
+        totals: {
+          makespan: 0,
+          busySlots: 0,
+          utilization: 0,
+          alpha: 0,
+          contextSwitches: 0,
+        },
+        det: {
+          nrAvg: 0,
+          npAvg: 0,
+          nAvg: 0,
+          tbarJobs: 0,
+        },
+      };
+    }
+
+    const arrMap = new Map<string, number>();
+    const durMap = new Map<string, number>();
+    for (const j of jobs) {
+      if (!names.has(j.id)) continue;
+      arrMap.set(j.id, Math.max(0, Number(j.arrivalTime) || 0));
+      durMap.set(j.id, Math.max(0, Number(j.duration) || 0));
+    }
+
+    const firstStart = new Map<string, number>();
+    const lastSeen = new Map<string, number>();
+    const ranTicks = new Map<string, number>();
+
+    let busySlots = 0; // ∑ aktivnih po sekundi
+    let queueSlots = 0; // ∑ veličina reda po sekundi
+    let contextSwitches = 0;
+
+    for (let i = 0; i < columns.length; i++) {
+      const col = columns[i];
+      if (i > 0) {
+        const prev = columns[i - 1].activeIds;
+        for (let c = 0; c < Math.max(prev.length, col.activeIds.length); c++) {
+          if ((prev[c] ?? undefined) !== (col.activeIds[c] ?? undefined)) {
+            contextSwitches++;
+          }
+        }
+      }
+      const activeNow = col.activeIds.filter(Boolean) as string[];
+      busySlots += activeNow.length;
+      queueSlots += col.readyIds.length;
+
+      for (const id of activeNow) {
+        if (!firstStart.has(id)) firstStart.set(id, col.t);
+        lastSeen.set(id, col.t);
+        ranTicks.set(id, (ranTicks.get(id) ?? 0) + 1);
+      }
+    }
+
+    const makespan = Math.max(
+      0,
+      (columns.at(-1)?.t ?? 0) + 1 - (columns[0]?.t ?? 0)
+    );
+    const utilization = makespan > 0 ? busySlots / (makespan * numCpus) : 0;
+    const alpha = makespan > 0 ? names.size / makespan : 0; // poslovi/s
+
+    const ids = Array.from(names.keys()).sort(
+      (a, b) => (arrMap.get(a) ?? 0) - (arrMap.get(b) ?? 0)
+    );
+
+    let sumTurnaround = 0;
+    for (const id of ids) {
+      const name = names.get(id) ?? id;
+      const color = colors.get(id) ?? "#90caf9";
+      const arrival = arrMap.get(id) ?? 0;
+      const duration = durMap.get(id) ?? ranTicks.get(id) ?? 0;
+
+      const start = firstStart.get(id) ?? arrival;
+      const finish = (lastSeen.get(id) ?? start) + 1;
+
+      const response = Math.max(0, start - arrival);
+      const turnaround = Math.max(0, finish - arrival);
+      const waiting = Math.max(0, turnaround - duration);
+
+      sumTurnaround += turnaround;
+
+      perJob.push({
+        id,
+        name,
+        color,
+        arrival,
+        start,
+        finish,
+        response,
+        turnaround,
+        waiting,
+        duration,
+      });
+    }
+
+    // Prosjeci po intervalu
+    const nrAvg = makespan > 0 ? queueSlots / makespan : 0; // u redu
+    const npAvg = makespan > 0 ? busySlots / makespan : 0; // u poslužitelju (0..Ncpu)
+    const nAvg = nrAvg + npAvg; // u sustavu
+    const tbarJobs = ids.length > 0 ? sumTurnaround / ids.length : 0; // srednje vrijeme boravka
+
+    return {
+      perJob,
+      totals: { makespan, busySlots, utilization, alpha, contextSwitches },
+      det: { nrAvg, npAvg, nAvg, tbarJobs },
+    };
+  }, [columns, names, colors, jobs, numCpus]);
 
   /* ---------- crtanje ---------- */
   const width = LEFT_W + totalSecs * SEC_PX;
@@ -358,7 +491,7 @@ export default function SchedFifoSim() {
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
-            {/* Dropdown: manje opcija (1–8) i reset simulacije na promjenu */}
+            {/* Dropdown: 1–8 i reset simulacije na promjenu */}
             <FormControl size="small" sx={{ minWidth: 160 }}>
               <InputLabel id="akt-dretve-label">Aktivne dretve</InputLabel>
               <Select
@@ -369,7 +502,6 @@ export default function SchedFifoSim() {
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   setNumCpus(v);
-                  // odmah kreni "od nule"
                   setRunning(true);
                   setProgress(0);
                   scrollRef.current?.scrollTo({ left: 0, behavior: "smooth" });
@@ -595,7 +727,7 @@ export default function SchedFifoSim() {
                   left: LEFT_W,
                   bottom: BOTTOM_H,
                   width: totalSecs * SEC_PX,
-                  height: activeAreaH,
+                  height: ACTIVE_H * Math.max(1, numCpus),
                   zIndex: 3000,
                 }}
               >
@@ -683,7 +815,7 @@ export default function SchedFifoSim() {
                     position: "absolute",
                     left: LEFT_W,
                     right: 0,
-                    bottom: BOTTOM_H + activeAreaH,
+                    bottom: BOTTOM_H + ACTIVE_H * Math.max(1, numCpus),
                     height: 0,
                     borderTop: AXIS,
                   }}
@@ -741,7 +873,7 @@ export default function SchedFifoSim() {
                   sx={{
                     position: "absolute",
                     left: 12,
-                    bottom: BOTTOM_H + activeAreaH + 8,
+                    bottom: BOTTOM_H + ACTIVE_H * Math.max(1, numCpus) + 8,
                     fontSize: 12,
                     fontWeight: 700,
                   }}
@@ -781,6 +913,161 @@ export default function SchedFifoSim() {
         )}
       </Box>
 
+      {/* --- STATISTIKA ISPOD --- */}
+      {columns.length > 0 && (
+        <Box sx={{ mt: 3 }}>
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <Typography variant="h6" fontWeight={700}>
+                Statistika
+              </Typography>
+              <Button
+                size="small"
+                startIcon={statsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                onClick={() => setStatsOpen((o) => !o)}
+              >
+                {statsOpen ? "Sakrij statistiku" : "Prikaži statistiku"}
+              </Button>
+            </Stack>
+
+            <Collapse in={statsOpen} timeout="auto" unmountOnExit>
+              <Stack
+                direction="row"
+                spacing={4}
+                sx={{ mb: 1, flexWrap: "wrap" }}
+              >
+                <StatItem
+                  label="Trajanje rasporeda"
+                  value={`${totals.makespan}s`}
+                  hint="Ukupno trajanje od početka do završetka rasporeda."
+                />
+                <StatItem
+                  label="Iskorištenost CPU-a"
+                  value={`${(totals.utilization * 100).toFixed(1)}%`}
+                  hint="(∑ broj aktivnih poslova po sekundi) / (N_cpu × trajanje)."
+                />
+                <StatItem
+                  label="Stopa dovršenih poslova (α)"
+                  value={`${totals.alpha.toFixed(3)} posla/s`}
+                  hint="Broj dovršenih poslova podijeljen s trajanjem intervala."
+                />
+                <StatItem
+                  label="Kontekstni preklopi"
+                  value={`${totals.contextSwitches}`}
+                  hint="Promjene posla na CPU-u između dvije uzastopne sekunde."
+                />
+              </Stack>
+
+              <Divider sx={{ my: 1.5 }} />
+
+              <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                Prosjeci po intervalu (Little)
+              </Typography>
+              <Stack
+                direction="row"
+                spacing={4}
+                sx={{ mb: 1, flexWrap: "wrap" }}
+              >
+                <StatItem
+                  label="Prosječan broj u redu (n_r)"
+                  value={det.nrAvg.toFixed(2)}
+                  hint="Srednja veličina reda spremnih: (∑ veličina reda po sekundi) / trajanje."
+                />
+                <StatItem
+                  label="Prosječan broj u poslužitelju (n_p)"
+                  value={det.npAvg.toFixed(2)}
+                  hint="Srednji broj aktivnih poslova po sekundi (0 do N_cpu)."
+                />
+                <StatItem
+                  label="Prosječan broj u sustavu (n)"
+                  value={det.nAvg.toFixed(2)}
+                  hint="n = n_r + n_p = (∑ N[t]) / T. Primjer: 35/20 = 1.75."
+                />
+                <StatItem
+                  label="Srednje vrijeme u sustavu (T)"
+                  value={`${det.tbarJobs.toFixed(2)}s`}
+                  hint="Prosjek vremena (završetak − dolazak) po poslu. Vrijedi i T = n / α (Little)."
+                />
+              </Stack>
+
+              <Divider sx={{ my: 1.5 }} />
+
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Posao</TableCell>
+                    <TableCell align="right">Dolazak</TableCell>
+                    <TableCell align="right">Početak</TableCell>
+                    <TableCell align="right">Završetak</TableCell>
+                    <TableCell align="right">Trajanje (C)</TableCell>
+                    <TableCell align="right">Response</TableCell>
+                    <TableCell align="right">Turnaround</TableCell>
+                    <TableCell align="right">Čekanje</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {perJob.map((s) => (
+                    <TableRow key={s.id} hover>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: "50%",
+                              background: s.color,
+                              boxShadow: 1,
+                            }}
+                          />
+                          <Typography>{s.name}</Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        title="Vrijeme dolaska posla u sustav"
+                      >
+                        {s.arrival}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        title="Prvi put kad je posao dobio CPU"
+                      >
+                        {s.start}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        title="Zadnji trenutak u kojem je posao bio aktivan + 1"
+                      >
+                        {s.finish}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        title="Ukupno potrebno procesorsko vrijeme"
+                      >
+                        {s.duration}
+                      </TableCell>
+                      <TableCell align="right" title="Početak − dolazak">
+                        {s.response}
+                      </TableCell>
+                      <TableCell align="right" title="Završetak − dolazak">
+                        {s.turnaround}
+                      </TableCell>
+                      <TableCell align="right" title="Turnaround − trajanje">
+                        {s.waiting}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Collapse>
+          </Paper>
+        </Box>
+      )}
+
       {/* Info dialog */}
       <Dialog
         open={openInfo}
@@ -799,8 +1086,36 @@ export default function SchedFifoSim() {
             <b>višeg prioriteta</b>. Svaka kolona je 1 s. Broj aktivnih dretvi
             možeš mijenjati gore desno — simulacija tad kreće ispočetka.
           </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Littleovo pravilo: <b>n = α × T</b> (prosječan broj u sustavu =
+            stopa dovršenih poslova × srednje vrijeme u sustavu).
+          </Typography>
         </DialogContent>
       </Dialog>
     </Box>
+  );
+}
+
+/* --- helper za brojke u statistici (s hover opisom) --- */
+function StatItem({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <Tooltip title={hint} arrow>
+      <Stack spacing={0.2} sx={{ cursor: "help" }}>
+        <Typography variant="caption" color="text.secondary">
+          {label}
+        </Typography>
+        <Typography variant="subtitle1" fontWeight={700}>
+          {value}
+        </Typography>
+      </Stack>
+    </Tooltip>
   );
 }

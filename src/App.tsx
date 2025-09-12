@@ -11,7 +11,8 @@ export default function App() {
     location.pathname === "/rmpa_sim" ||
     location.pathname === "/edf_sim" ||
     location.pathname === "/llf_sim" ||
-    location.pathname === "/cfs_sim";
+    location.pathname === "/cfs_sim" ||
+    location.pathname === "/sched_rr_sim";
 
   return (
     <Box

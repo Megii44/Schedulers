@@ -19,6 +19,7 @@ const schedulers = [
   { label: "EDF", path: "/edf" },
   { label: "LLF", path: "/llf" },
   { label: "CFS", path: "/cfs" },
+  { label: "SCHED_RR", path: "/sched_rr" },
 ];
 
 export default function Sidebar() {

@@ -20,6 +20,8 @@ import RmpaSim from "./rmpa_sim";
 import EdfSim from "./edf_sim";
 import LlfSim from "./llf_sim";
 import CfsSim from "./cfs_sim";
+import SchedRr from "./sched_rr";
+import SchedRrSim from "./sched_rr_sim";
 
 // Root layout (App.tsx sadrži Sidebar i Outlet)
 const rootRoute = createRootRoute({
@@ -111,6 +113,18 @@ const cfsSimRoute = createRoute({
   component: CfsSim,
 });
 
+const schedRrRoute = createRoute({
+  path: "/sched_rr",
+  getParentRoute: () => rootRoute,
+  component: SchedRr,
+});
+
+const schedRrSimRoute = createRoute({
+  path: "/sched_rr_sim",
+  getParentRoute: () => rootRoute,
+  component: SchedRrSim,
+});
+
 // Početna ruta – redirekcija na FIFO (možeš promeniti ako želiš drugi default)
 const indexRoute = createRoute({
   path: "/",
@@ -138,6 +152,8 @@ const routeTree = rootRoute.addChildren([
   rmpaSimRoute,
   cfsRoute,
   cfsSimRoute,
+  schedRrRoute,
+  schedRrSimRoute,
 ]);
 
 export const router = createRouter({ routeTree });

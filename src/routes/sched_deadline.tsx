@@ -5,224 +5,70 @@ import {
   DialogContent,
   IconButton,
   Typography,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TextField,
-  Stack,
-  Tooltip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import SaveIcon from "@mui/icons-material/Save";
 import { useState } from "react";
 import Header from "../components/Header";
+import JobTable from "../components/JobTable";
 import { useNavigate } from "@tanstack/react-router";
 
-/* ---------- Tip posla za SCHED_DEADLINE (C,D,T + A + boja) ---------- */
-type DLJob = {
+type Job = {
   id: string;
   name: string;
-  runtime: number | ""; // C
-  deadline: number | ""; // D
-  period: number | ""; // T
-  arrivalTime: number | ""; // A (za simulaciju)
-  color: string; // boja bedgea i simulacije
+  priority: number; // OVDJE: rok D (relativno od dolaska), >= 0
+  duration: number; // C >= 0
+  arrivalTime: number; // r >= 0
   editable: boolean;
 };
 
-const PALETTE = ["#f44336", "#ba68c8", "#4caf50", "#00bcd4", "#ffb300"];
-const getColor = (i: number) => PALETTE[i % PALETTE.length];
+// Pretvori bilo koji unos u nenegativan cijeli broj; nevaljano -> 0
+const toNonNegativeInt = (v: unknown): number => {
+  if (v === "" || v == null) return 0;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.floor(n));
+};
 
-/* ---------- Lokalna tablica (analogno JobTable iz FIFO) ---------- */
-function DeadlineTable({
-  jobs,
-  onUpdate,
-  onSave,
-  onDelete,
-  onSetEditable,
-}: {
-  jobs: DLJob[];
-  onUpdate: (id: string, field: keyof DLJob, value: number | "") => void;
-  onSave: (id: string) => void;
-  onDelete: (id: string) => void;
-  onSetEditable: (id: string, value: boolean) => void;
-}) {
-  const parseNumOrEmpty = (v: string): number | "" => {
-    const n = parseInt(v, 10);
-    return Number.isNaN(n) ? "" : n;
-  };
+// “Prioritet” stupac koristimo kao rok D (dopuštam i "#5")
+const parseDeadline = (v: unknown): number => {
+  if (v === "" || v == null) return 0;
+  const s = String(v).trim();
+  const m = s.match(/^#?\s*([0-9]+)$/);
+  if (!m) return 0;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.floor(n));
+};
 
-  return (
-    <Paper>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Posao</TableCell>
-            <TableCell>
-              <Tooltip title="Runtime (C): maksimalno CPU vrijeme unutar perioda.">
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  Runtime (C){" "}
-                  <InfoOutlinedIcon fontSize="small" color="action" />
-                </Box>
-              </Tooltip>
-            </TableCell>
-            <TableCell>
-              <Tooltip title="Deadline (D): rok unutar kojeg posao mora završiti.">
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  Deadline (D){" "}
-                  <InfoOutlinedIcon fontSize="small" color="action" />
-                </Box>
-              </Tooltip>
-            </TableCell>
-            <TableCell>
-              <Tooltip title="Period (T): interval ponavljanja zadatka.">
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  Period (T){" "}
-                  <InfoOutlinedIcon fontSize="small" color="action" />
-                </Box>
-              </Tooltip>
-            </TableCell>
-            <TableCell>
-              <Tooltip title="Arrival (A): vrijeme dolaska (za simulaciju).">
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  Arrival (A){" "}
-                  <InfoOutlinedIcon fontSize="small" color="action" />
-                </Box>
-              </Tooltip>
-            </TableCell>
-            <TableCell>Akcije</TableCell>
-          </TableRow>
-        </TableHead>
-
-        <TableBody>
-          {jobs.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={6} align="center">
-                Nema unesenih poslova
-              </TableCell>
-            </TableRow>
-          ) : (
-            jobs.map((job) => (
-              <TableRow key={job.id}>
-                <TableCell>
-                  <Box
-                    px={2}
-                    py={0.5}
-                    borderRadius="12px"
-                    fontWeight="bold"
-                    color="white"
-                    sx={{
-                      backgroundColor: job.color,
-                      display: "inline-block",
-                      boxShadow: 2,
-                    }}
-                  >
-                    {job.name}
-                  </Box>
-                </TableCell>
-
-                {(
-                  ["runtime", "deadline", "period", "arrivalTime"] as const
-                ).map((field) => (
-                  <TableCell key={field}>
-                    {job.editable ? (
-                      <TextField
-                        size="small"
-                        value={job[field]}
-                        onChange={(e) =>
-                          onUpdate(
-                            job.id,
-                            field,
-                            parseNumOrEmpty(e.target.value)
-                          )
-                        }
-                        type="number"
-                        inputProps={{ min: 0 }}
-                      />
-                    ) : (
-                      `${job[field]} s`
-                    )}
-                  </TableCell>
-                ))}
-
-                <TableCell>
-                  {job.editable ? (
-                    <IconButton
-                      color="success"
-                      onClick={() => onSave(job.id)}
-                      aria-label="Spremi posao"
-                    >
-                      <SaveIcon />
-                    </IconButton>
-                  ) : (
-                    <Stack direction="row" spacing={1}>
-                      <IconButton
-                        color="warning"
-                        onClick={() => onSetEditable(job.id, true)}
-                        aria-label="Uredi posao"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        color="error"
-                        onClick={() => onDelete(job.id)}
-                        aria-label="Obriši posao"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Stack>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </Paper>
-  );
-}
-
-/* ---------- Stranica: SCHED_DEADLINE ---------- */
 export default function SchedDeadline() {
-  const [jobs, setJobs] = useState<DLJob[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [openInfo, setOpenInfo] = useState(false);
   const navigate = useNavigate();
 
-  /* Dodaj posao -> prazna edit polja + fiksiraj boju */
   const handleAddJob = () => {
     setJobs((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
         name: `Posao ${prev.length + 1}`,
-        runtime: "",
-        deadline: "",
-        period: "",
-        arrivalTime: "",
-        color: getColor(prev.length),
+        priority: 0, // D (relativni rok)
+        duration: 0, // C
+        arrivalTime: 0, // r
         editable: true,
       },
     ]);
   };
 
-  /* Generiraj -> popunjena polja, nije edit + fiksiraj boju */
   const handleGenerateRandomJob = () => {
     setJobs((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
         name: `Posao ${prev.length + 1}`,
-        runtime: Math.floor(Math.random() * 3) + 1, // 1–3 s
-        deadline: Math.floor(Math.random() * 6) + 3, // 3–8 s
-        period: Math.floor(Math.random() * 8) + 4, // 4–11 s
-        arrivalTime: Math.floor(Math.random() * 6), // 0–5 s
-        color: getColor(prev.length),
+        // D ~ 2..12s od dolaska, C ~ 1..8s, r ~ 0..10s
+        priority: Math.floor(Math.random() * 11) + 2,
+        duration: Math.floor(Math.random() * 8) + 1,
+        arrivalTime: Math.floor(Math.random() * 11),
         editable: false,
       },
     ]);
@@ -245,19 +91,40 @@ export default function SchedDeadline() {
         onInfoClick={() => setOpenInfo(true)}
       />
 
-      <DeadlineTable
+      <JobTable
         jobs={jobs}
         onUpdate={(id, field, value) =>
           setJobs((prev) =>
-            prev.map((job) =>
-              job.id === id ? { ...job, [field]: value } : job
-            )
+            prev.map((job) => {
+              if (job.id !== id) return job;
+
+              if (field === "priority") {
+                // Ovdje “priority” = rok D (relativno)
+                return { ...job, priority: parseDeadline(value) };
+              }
+              if (field === "duration") {
+                return { ...job, duration: toNonNegativeInt(value) };
+              }
+              if (field === "arrivalTime") {
+                return { ...job, arrivalTime: toNonNegativeInt(value) };
+              }
+
+              return { ...job, [field]: value as any };
+            })
           )
         }
         onSave={(id) =>
           setJobs((prev) =>
             prev.map((job) =>
-              job.id === id ? { ...job, editable: false } : job
+              job.id === id
+                ? {
+                    ...job,
+                    priority: parseDeadline(job.priority),
+                    duration: toNonNegativeInt(job.duration),
+                    arrivalTime: toNonNegativeInt(job.arrivalTime),
+                    editable: false,
+                  }
+                : job
             )
           )
         }
@@ -280,21 +147,24 @@ export default function SchedDeadline() {
           style={{ padding: "40px" }}
         >
           <Typography fontWeight="bold" variant="h4">
-            SCHED_DEADLINE
+            SCHED_DEADLINE (EDF)
           </Typography>
           <IconButton onClick={() => setOpenInfo(false)}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-
         <DialogContent style={{ padding: "10px 40px" }}>
           <Typography gutterBottom>
-            <strong>SCHED_DEADLINE</strong> planira prema{" "}
-            <strong>Earliest Deadline First (EDF)</strong> uz{" "}
-            <strong>Constant Bandwidth Server (CBS)</strong>. Svaki posao ima{" "}
-            <em>runtime (C)</em>, <em>deadline (D)</em> i <em>period (T)</em>, a
-            u ovoj aplikaciji dodan je i <em>arrival (A)</em> radi simulacije
-            dolaska.
+            Ovdje simuliramo <strong>Earliest-Deadline-First</strong> s
+            preotimanjem. U svakom trenutku CPU dobivaju poslovi s{" "}
+            <em>najranijim apsolutnim rokom</em>. Ako stigne posao s ranijim
+            rokom, preuzima CPU od posla s kasnijim rokom.
+          </Typography>
+          <Typography variant="subtitle2" gutterBottom>
+            <strong>Napomena:</strong> u tablici polje <em>Prioritet</em>{" "}
+            tumačimo kao <strong>rok D</strong> izražen u sekundama{" "}
+            <u>relativno na dolazak</u> (apsolutni rok je{" "}
+            <code>arrivalTime + D</code>).
           </Typography>
         </DialogContent>
       </Dialog>
